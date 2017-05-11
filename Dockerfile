@@ -14,5 +14,5 @@
 
 FROM alpine:3.5
 RUN apk add --no-cache ca-certificates
-COPY server server
-ENTRYPOINT ["/server"]
+COPY alb-ingress-controller alb-ingress-controller
+ENTRYPOINT ["/alb-ingress-controller"]
