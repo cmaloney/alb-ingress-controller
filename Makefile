@@ -16,21 +16,21 @@
 #
 # Usage:
 # 	[PREFIX=gcr.io/google_containers/dummy-ingress-controller] [ARCH=amd64] [TAG=1.1] make (server|container|push)
-
+.PHONY: server container push clean
 all: container
 
-TAG?=0.8
-PREFIX?=quay.io/coreos/alb-ingress-controller
+TAG?=`git show --oneline -s | cut -c1-8`
+PREFIX?=emeraldsci/alb-ingress-controller
 ARCH?=amd64
 TEMP_DIR:=$(shell mktemp -d)
 
-server: main.go
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) GOARM=6 go build -a -installsuffix cgo -ldflags '-w' -o server ./main.go
+server: 
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) GOARM=6 go build -a -installsuffix cgo -ldflags '-w' -o alb-ingress-controller ./main.go
 
 container: server
 	docker build --pull -t $(PREFIX):$(TAG) .
 
-push: push
+push: container
 	docker push $(PREFIX):$(TAG)
 
 clean:
