@@ -6,7 +6,6 @@ import (
 	"github.com/coreos/alb-ingress-controller/awsutil"
 	"github.com/coreos/alb-ingress-controller/controller/config"
 	"github.com/coreos/alb-ingress-controller/log"
-	"github.com/golang/glog"
 )
 
 // Listener contains the relevant ID, Rules, and current/desired Listeners
@@ -155,9 +154,7 @@ func (l *Listener) modify(lb *LoadBalancer) error {
 		Protocol:       l.DesiredListener.Protocol,
 		SslPolicy:      l.DesiredListener.SslPolicy,
 	}
-	awsutil.ALBsvc.ModifyListeners()
-	glog.Infof("Modifying existing %s listener %s", *lb.ID, *l.CurrentListener.ListenerArn)
-	glog.Info("NOT IMPLEMENTED!!!!")
+	awsutil.ALBsvc.ModifyListeners(in)
 
 	log.Infof("Completed Listener modification. ARN: %s | Port: %s | Proto: %s.",
 		*l.IngressID, *l.CurrentListener.ListenerArn, *l.CurrentListener.Port, *l.CurrentListener.Protocol)
