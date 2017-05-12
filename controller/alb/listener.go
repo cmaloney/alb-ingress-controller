@@ -146,6 +146,16 @@ func (l *Listener) modify(lb *LoadBalancer) error {
 		return l.create(lb)
 	}
 
+	// Port, protocol, certificates, defaultaction
+	in := elbv2.ModifyListenerInput{
+		Certificates:   l.DesiredListener.Certificates,
+		DefaultActions: l.DesiredListener.DefaultActions,
+		ListenerArn:    l.CurrentListener.ListenerArn,
+		Port:           l.DesiredListener.Port,
+		Protocol:       l.DesiredListener.Protocol,
+		SslPolicy:      l.DesiredListener.SslPolicy,
+	}
+	awsutil.ALBsvc.ModifyListeners()
 	glog.Infof("Modifying existing %s listener %s", *lb.ID, *l.CurrentListener.ListenerArn)
 	glog.Info("NOT IMPLEMENTED!!!!")
 
@@ -179,6 +189,8 @@ func (l *Listener) needsModification(target *elbv2.Listener) bool {
 	case !awsutil.DeepEqual(l.CurrentListener.Protocol, target.Protocol):
 		return true
 	case !awsutil.DeepEqual(l.CurrentListener.Certificates, target.Certificates):
+		return true
+	case !awsutil.DeepEqual(l.CurrentListener.DefaultActions, target.DefaultActions):
 		return true
 	}
 	return false

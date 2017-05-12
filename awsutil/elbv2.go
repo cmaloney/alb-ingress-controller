@@ -297,6 +297,16 @@ func (e *ELBV2) DescribeListeners(loadBalancerArn *string) ([]*elbv2.Listener, e
 	return listeners, nil
 }
 
+func (e *ELBV2) ModifyListeners(in elbv2.ModifyListenerInput) ([]*elbv2.Listener, error) {
+	o, err := e.Svc.ModifyListener(&in)
+	if err != nil {
+		AWSErrorCount.With(
+			prometheus.Labels{"service": "ELBV2", "request": "ModifyListener"})
+		return nil, err
+	}
+	return o.Listeners
+}
+
 // DescribeTags looks up all tags for a given ARN.
 func (e *ELBV2) DescribeTags(arn *string) (util.Tags, error) {
 	describeTags, err := e.Svc.DescribeTags(&elbv2.DescribeTagsInput{
