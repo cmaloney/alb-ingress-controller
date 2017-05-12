@@ -2,6 +2,7 @@ package alb
 
 import (
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/golang/glog"
 )
 
 // Rules contains a slice of Rules
@@ -9,7 +10,7 @@ type Rules []*Rule
 
 // Reconcile kicks off the state synchronization for every Rule in this Rules slice.
 func (r Rules) Reconcile(lb *LoadBalancer, l *Listener) error {
-
+	glog.Infof("START rules: %d: %+v", len(r), r)
 	for i, rule := range r {
 		if err := rule.Reconcile(lb, l); err != nil {
 			return err
@@ -18,7 +19,7 @@ func (r Rules) Reconcile(lb *LoadBalancer, l *Listener) error {
 			l.Rules = append(l.Rules[:i], l.Rules[i+1:]...)
 		}
 	}
-
+	glog.Infof("END rules: %d: %+v", len(r), r)
 	return nil
 }
 
