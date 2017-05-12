@@ -119,11 +119,13 @@ func (e *ELBV2) Delete(in elbv2.DeleteLoadBalancerInput) error {
 // listener has already been removed. If removal fails for another reason, an error is returned.
 func (e *ELBV2) RemoveListener(in elbv2.DeleteListenerInput) error {
 	_, err := e.Svc.DeleteListener(&in)
-	awsErr := err.(awserr.Error)
-	if err != nil && awsErr.Code() != elbv2.ErrCodeListenerNotFoundException {
-		AWSErrorCount.With(
-			prometheus.Labels{"service": "ELBV2", "request": "DeleteListener"}).Add(float64(1))
-		return err
+	if err != nil {
+		awsErr := err.(awserr.Error)
+		if awsErr.Code() != elbv2.ErrCodeListenerNotFoundException {
+			AWSErrorCount.With(
+				prometheus.Labels{"service": "ELBV2", "request": "DeleteListener"}).Add(float64(1))
+			return err
+		}
 	}
 	return nil
 }
@@ -304,7 +306,7 @@ func (e *ELBV2) ModifyListeners(in elbv2.ModifyListenerInput) ([]*elbv2.Listener
 			prometheus.Labels{"service": "ELBV2", "request": "ModifyListener"})
 		return nil, err
 	}
-	return o.Listeners
+	return o.Listeners, nil
 }
 
 // DescribeTags looks up all tags for a given ARN.
