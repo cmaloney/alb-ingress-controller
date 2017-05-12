@@ -56,6 +56,7 @@ func (r *Rule) Reconcile(lb *LoadBalancer, l *Listener) error {
 	switch {
 	case r.DesiredRule == nil: // rule should be deleted
 		if r.CurrentRule == nil {
+			r.deleted = true
 			break
 		}
 		if *r.CurrentRule.IsDefault == true {
