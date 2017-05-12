@@ -67,6 +67,7 @@ func (r *Rule) Reconcile(lb *LoadBalancer, l *Listener) error {
 			return err
 		}
 		log.Infof("Completed Rule deletion. Rule: %s | Condition: %s", *r.IngressID,
+			log.Prettify(r.CurrentRule),
 			log.Prettify(r.CurrentRule.Conditions))
 
 	case *r.DesiredRule.IsDefault: // rule is default (attached to listener), do nothing
@@ -80,6 +81,7 @@ func (r *Rule) Reconcile(lb *LoadBalancer, l *Listener) error {
 			return err
 		}
 		log.Infof("Completed Rule creation. Rule: %s | Condition: %s", *r.IngressID,
+			log.Prettify(r.CurrentRule),
 			log.Prettify(r.CurrentRule.Conditions))
 
 	case r.needsModification(): // diff between current and desired, modify rule

@@ -161,6 +161,9 @@ func NewALBIngressFromIngress(ingress *extensions.Ingress, ac *ALBController) (*
 				}
 				listener.Rules = append(listener.Rules, rule)
 			}
+			for _, listener := range listenerList {
+				log.Infof("Num Rules: %d", *listener.IngressID, len(listener.Rules))
+			}
 
 			// Create a new ResourceRecordSet for the hostname.
 			resourceRecordSet := alb.NewResourceRecordSet(lb.Hostname, lb.IngressID)
