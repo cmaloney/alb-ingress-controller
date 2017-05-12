@@ -114,6 +114,8 @@ func NewALBIngressFromIngress(ingress *extensions.Ingress, ac *ALBController) (*
 				continue
 			}
 
+			glog.Infof("path serv: %s: %s %d", newIngress.Name(), path, port)
+
 			// Start with a new target group with a new Desired state.
 			targetGroup := alb.NewTargetGroup(newIngress.annotations, newIngress.Tags(), newIngress.clusterName, lb.ID, port, newIngress.id, path.Backend.ServiceName)
 			// If this rule/path matches an existing target group, pull it out so we can work on it.
@@ -149,20 +151,17 @@ func NewALBIngressFromIngress(ingress *extensions.Ingress, ac *ALBController) (*
 				lb.Listeners = append(lb.Listeners, listener)
 
 				// Start with a new rule
-				rule := alb.NewRule(path, newIngress.id)
+				albRule := alb.NewRule(path, newIngress.id)
 				// If this rule matches an existing rule, pull it out so we can work on it
-				if i := listener.Rules.Find(rule.DesiredRule); i >= 0 {
+				if i := listener.Rules.Find(albRule.DesiredRule); i >= 0 {
 					// Save the Desired state to our old Rule
-					listener.Rules[i].DesiredRule = rule.DesiredRule
+					listener.Rules[i].DesiredRule = albRule.DesiredRule
 					// Set rule to our old but updated Rule
-					rule = listener.Rules[i]
+					albRule = listener.Rules[i]
 					// Remove the old Rule from our list.
 					listener.Rules = append(listener.Rules[:i], listener.Rules[i+1:]...)
 				}
-				listener.Rules = append(listener.Rules, rule)
-			}
-			for _, listener := range listenerList {
-				log.Infof("Num Rules: %d", *listener.IngressID, len(listener.Rules))
+				listener.Rules = append(listener.Rules, albRule)
 			}
 
 			// Create a new ResourceRecordSet for the hostname.
