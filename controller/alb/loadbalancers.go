@@ -23,9 +23,6 @@ func (l LoadBalancers) Reconcile() (LoadBalancers, error) {
 		if err := loadbalancer.Reconcile(); err != nil {
 			return loadbalancers, err
 		}
-		if err := loadbalancer.ResourceRecordSet.Reconcile(loadbalancer); err != nil {
-			return loadbalancers, err
-		}
 		if err := loadbalancer.TargetGroups.Reconcile(loadbalancer); err != nil {
 			return loadbalancers, err
 		}
@@ -46,8 +43,5 @@ func (l LoadBalancers) Reconcile() (LoadBalancers, error) {
 func (l LoadBalancers) StripDesiredState() {
 	for _, lb := range l {
 		lb.DesiredLoadBalancer = nil
-		if lb.ResourceRecordSet != nil {
-			lb.ResourceRecordSet.DesiredResourceRecordSet = nil
-		}
 	}
 }

@@ -33,7 +33,6 @@ func NewALBController(awsconfig *aws.Config, conf *config.Config) *ALBController
 
 	awsutil.AWSDebug = conf.AWSDebug
 	awsutil.Session = awsutil.NewSession(awsconfig)
-	awsutil.Route53svc = awsutil.NewRoute53(awsutil.Session)
 	awsutil.ALBsvc = awsutil.NewELBV2(awsutil.Session)
 	awsutil.Ec2svc = awsutil.NewEC2(awsutil.Session)
 	awsutil.ACMsvc = awsutil.NewACM(awsutil.Session)

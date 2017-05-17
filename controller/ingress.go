@@ -18,7 +18,7 @@ import (
 )
 
 // ALBIngress contains all information above the cluster, ingress resource, and AWS resources
-// needed to assemble an ALB, TargetGroup, Listener, Rules, and Route53 Resource Records.
+// needed to assemble an ALB, TargetGroup, Listener, and Rules.
 type ALBIngress struct {
 	id            *string
 	namespace     *string
@@ -161,18 +161,6 @@ func NewALBIngressFromIngress(ingress *extensions.Ingress, ac *ALBController) (*
 				}
 				listener.Rules = append(listener.Rules, rule)
 			}
-
-			// Create a new ResourceRecordSet for the hostname.
-			resourceRecordSet := alb.NewResourceRecordSet(lb.Hostname, lb.IngressID)
-			// If the load balancer has a CurrentResourceRecordSet, set
-			// this value inside our new resourceRecordSet.
-			if lb.ResourceRecordSet != nil {
-				resourceRecordSet.CurrentResourceRecordSet = lb.ResourceRecordSet.CurrentResourceRecordSet
-			}
-
-			// Assign the resourceRecordSet to the load balancer
-			lb.ResourceRecordSet = resourceRecordSet
-
 		}
 
 		// Add the newly constructed LoadBalancer to the new ALBIngress's Loadbalancer list.
@@ -219,33 +207,13 @@ func assembleIngresses(ac *ALBController) ALBIngressesT {
 			continue
 		}
 
-		zone, err := awsutil.Route53svc.GetZoneID(&hostname)
-		if err != nil {
-			log.Infof("Failed to resolve %s zoneID. Returned error %s", "controller", hostname, err.Error())
-			continue
-		}
-
-		log.Infof("Fetching resource recordset for %s/%s %s", "controller", namespace, ingressName, hostname)
-		resourceRecordSet, err := awsutil.Route53svc.DescribeResourceRecordSets(zone.Id,
-			&hostname)
-		if err != nil {
-			log.Errorf("Failed to find %s in AWS Route53", "controller", hostname)
-		}
-
 		ingressID := namespace + "-" + ingressName
-
-		rs := &alb.ResourceRecordSet{
-			IngressID: &ingressID,
-			ZoneID:    zone.Id,
-			CurrentResourceRecordSet: resourceRecordSet,
-		}
 
 		lb := &alb.LoadBalancer{
 			ID:                  loadBalancer.LoadBalancerName,
 			IngressID:           &ingressID,
 			Hostname:            aws.String(hostname),
 			CurrentLoadBalancer: loadBalancer,
-			ResourceRecordSet:   rs,
 			CurrentTags:         tags,
 		}
 
