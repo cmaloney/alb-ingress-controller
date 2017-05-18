@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/karlseguin/ccache"
 	"github.com/golang/glog"
+	"github.com/karlseguin/ccache"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -28,8 +28,6 @@ type APICache struct {
 var (
 	// Session is a pointer to the AWS session
 	Session *session.Session
-	// Route53svc is a pointer to the awsutil Route53 service
-	Route53svc *Route53
 	// ALBsvc is a pointer to the awsutil ELBV2 service
 	ALBsvc *ELBV2
 	// Ec2svc is a pointer to the awsutil EC2 service
@@ -96,7 +94,7 @@ func NewSession(awsconfig *aws.Config) *session.Session {
 			glog.Infof("Request: %s/%s, Payload: %s", r.ClientInfo.ServiceName, r.Operation, r.Params)
 		}
 	})
-	return session;
+	return session
 }
 
 // Prettify wraps github.com/aws/aws-sdk-go/aws/awsutil.Prettify. Preventing the need to import it
