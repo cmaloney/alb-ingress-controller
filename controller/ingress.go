@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"sort"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -24,7 +23,6 @@ type ALBIngress struct {
 	namespace     *string
 	ingressName   *string
 	clusterName   *string
-	lock          *sync.Mutex
 	annotations   *config.Annotations
 	LoadBalancers alb.LoadBalancers
 	tainted       bool // represents that parsing or validation this ingress resource failed
@@ -43,7 +41,6 @@ func NewALBIngress(namespace, name, clustername string) *ALBIngress {
 		namespace:   aws.String(namespace),
 		clusterName: aws.String(clustername),
 		ingressName: aws.String(name),
-		lock:        new(sync.Mutex),
 	}
 }
 
@@ -59,11 +56,6 @@ func NewALBIngressFromIngress(ingress *extensions.Ingress, ac *ALBController) (*
 
 	// Find the previous version of this ingress (if it existed) and copy its Current state.
 	if i := ac.ALBIngresses.find(newIngress); i >= 0 {
-		// Acquire a lock to prevent race condition if existing ingress's state is currently being synced
-		// with Amazon..
-		*newIngress = *ac.ALBIngresses[i]
-		newIngress.lock.Lock()
-		defer newIngress.lock.Unlock()
 		// Ensure all desired state is removed from the copied ingress. The desired state of each
 		// component will be generated later in this function.
 		newIngress.StripDesiredState()
@@ -307,8 +299,6 @@ func assembleIngresses(ac *ALBController) ALBIngressesT {
 
 // Reconcile begins the state sync for all AWS resource satisfying this ALBIngress instance.
 func (a *ALBIngress) Reconcile() {
-	a.lock.Lock()
-	defer a.lock.Unlock()
 	// If the ingress resource failed to assemble, don't attempt reconcile
 	if a.tainted {
 		return
