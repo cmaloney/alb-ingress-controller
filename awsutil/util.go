@@ -37,6 +37,7 @@ var (
 	// AWSDebug turns on AWS API debug logging
 	AWSDebug bool
 
+	/* TODO(cmaloney): Add new metrics
 	// OnUpdateCount is a counter of the controller OnUpdate calls
 	OnUpdateCount = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "albingress_updates",
@@ -78,6 +79,7 @@ var (
 		Help: "Number of requests made to the AWS API",
 	},
 		[]string{"service", "operation"})
+	*/
 )
 
 // NewSession returns an AWS session based off of the provided AWS config

@@ -1,5 +1,10 @@
 package alb
 
+// Controls a dictionary of load balancers based on uniquely identifiable traits
+//
+type LbController struct {
+}
+
 // LoadBalancers is a slice of LoadBalancer pointers
 type LoadBalancers []*LoadBalancer
 

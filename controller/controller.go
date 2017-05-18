@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -31,14 +30,14 @@ func NewALBController(awsconfig *aws.Config, conf *config.Config) *ALBController
 		clusterName: aws.String(conf.ClusterName),
 	}
 
+	// TODO(cmaloney): Move this all to OverrideFlags
 	awsutil.AWSDebug = conf.AWSDebug
 	awsutil.Session = awsutil.NewSession(awsconfig)
 	awsutil.ALBsvc = awsutil.NewELBV2(awsutil.Session)
 	awsutil.Ec2svc = awsutil.NewEC2(awsutil.Session)
 	awsutil.ACMsvc = awsutil.NewACM(awsutil.Session)
-	ac.ALBIngresses = assembleIngresses(ac)
 
-	return ingress.Controller(ac).(*ALBController)
+	return ac
 }
 
 // OnUpdate is a callback invoked from the sync queue when ingress resources, or resources ingress
@@ -46,10 +45,24 @@ func NewALBController(awsconfig *aws.Config, conf *config.Config) *ALBController
 // against the existing ALBIngress list known to the ALBController. Eventually the state of this
 // list is synced resulting in new ingresses causing resource creation, modified ingresses having
 // resources modified (when appropriate) and ingresses missing from the new list deleted from AWS.
-func (ac *ALBController) OnUpdate(ingressConfiguration ingress.Configuration) ([]byte, error) {
-	awsutil.OnUpdateCount.Add(float64(1))
+func (ac *ALBController) OnUpdate(ic ingress.Configuration) ([]byte, error) {
 
 	log.Debugf("OnUpdate event seen by ALB ingress controller.", "controller")
+
+	// ingressConfiguration.Backends has all the backends which we need to convert to TargetGroups
+	// but unfortunately AWS ALBs require that a target is only used by a single ALB, so we need
+	// to make TargetGroups per ALB created.
+
+	// For now ignoring TCPEndpoints and UDPEndpoints
+	var lbs LBController
+	lbs.UnmarkIngresses()
+
+	// Convert servers into individual ALBs
+	for server = range ic.Servers {
+		newLb := lbs.FromIngress(server)
+	}
+
+	panic("TODO")
 
 	// Create new ALBIngress list for this invocation.
 	var ALBIngresses ALBIngressesT
@@ -60,30 +73,8 @@ func (ac *ALBController) OnUpdate(ingressConfiguration ingress.Configuration) ([
 		if !ac.validIngress(ingResource) {
 			continue
 		}
-		// Produce a new ALBIngress instance for every ingress found. If ALBIngress returns nil, there
-		// was an issue with the ingress (e.g. bad annotations) and should not be added to the list.
-		ALBIngress, err := NewALBIngressFromIngress(ingResource, ac)
-		if ALBIngress == nil {
-			continue
-		}
-		if err != nil {
-			ALBIngress.tainted = true
-		}
-		// Add the new ALBIngress instance to the new ALBIngress list.
-		ALBIngresses = append(ALBIngresses, ALBIngress)
 	}
 
-	// Capture any ingresses missing from the new list that qualify for deletion.
-	deletable := ac.ingressToDelete(ALBIngresses)
-	// If deletable ingresses were found, add them to the list so they'll be deleted when Reconcile()
-	// is called.
-	if len(deletable) > 0 {
-		ALBIngresses = append(ALBIngresses, deletable...)
-	}
-
-	awsutil.ManagedIngresses.Set(float64(len(ALBIngresses)))
-	// Update the list of ALBIngresses known to the ALBIngress controller to the newly generated list.
-	ac.ALBIngresses = ALBIngresses
 	return []byte(""), nil
 }
 
@@ -104,11 +95,7 @@ func (ac ALBController) validIngress(i *extensions.Ingress) bool {
 func (ac *ALBController) Reload(data []byte) ([]byte, bool, error) {
 	awsutil.ReloadCount.Add(float64(1))
 
-	// Sync the state, resulting in creation, modify, delete, or no action, for every ALBIngress
-	// instance known to the ALBIngress controller.
-	for _, ALBIngress := range ac.ALBIngresses {
-		ALBIngress.Reconcile()
-	}
+	panic("TODO")
 
 	return []byte(""), true, nil
 }
@@ -140,6 +127,7 @@ func (ac *ALBController) Name() string {
 
 // Check tests the ingress controller configuration
 func (ac *ALBController) Check(_ *http.Request) error {
+	// TODO(cmaloney): Validate that the current ingresses match the expected ingresses.
 	return nil
 }
 
@@ -156,54 +144,4 @@ func (ac *ALBController) Info() *ingress.BackendInfo {
 		Build:      "git-00000000",
 		Repository: "git://github.com/coreos/alb-ingress-controller",
 	}
-}
-
-// GetServiceNodePort returns the nodeport for a given Kubernetes service
-func (ac *ALBController) GetServiceNodePort(serviceKey string, backendPort int32) (*int64, error) {
-	// Verify the service (namespace/service-name) exists in Kubernetes.
-	item, exists, _ := ac.storeLister.Service.GetByKey(serviceKey)
-	if !exists {
-		return nil, fmt.Errorf("Unable to find the %v service", serviceKey)
-	}
-
-	// Verify the service type is Node port.
-	if item.(*api.Service).Spec.Type != api.ServiceTypeNodePort {
-		return nil, fmt.Errorf("%v service is not of type NodePort", serviceKey)
-
-	}
-
-	// Find associated target port to ensure correct NodePort is assigned.
-	for _, p := range item.(*api.Service).Spec.Ports {
-		if p.Port == backendPort {
-			return aws.Int64(int64(p.NodePort)), nil
-		}
-	}
-
-	return nil, fmt.Errorf("Unable to find a port defined in the %v service", serviceKey)
-}
-
-// Returns a list of ingress objects that are no longer known to kubernetes and should
-// be deleted.
-func (ac *ALBController) ingressToDelete(newList ALBIngressesT) ALBIngressesT {
-	var deleteableIngress ALBIngressesT
-
-	// Loop through every ingress in current (old) ingress list known to ALBController
-	for _, ingress := range ac.ALBIngresses {
-		// If assembling the ingress resource failed, don't attempt deletion
-		if ingress.tainted {
-			continue
-		}
-		// Ingress objects not found in newList might qualify for deletion.
-		if i := newList.find(ingress); i < 0 {
-			// If the ALBIngress still contains LoadBalancer(s), it still needs to be deleted.
-			// In this case, strip all desired state and add it to the deleteableIngress list.
-			// If the ALBIngress contains no LoadBalancer(s), it was previously deleted and is
-			// no longer relevant to the ALBController.
-			if len(ingress.LoadBalancers) > 0 {
-				ingress.StripDesiredState()
-				deleteableIngress = append(deleteableIngress, ingress)
-			}
-		}
-	}
-	return deleteableIngress
 }
